@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  // CORS setup
+  // CORS Setup
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -16,21 +16,19 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing Token or URL" });
   }
 
-  // Token ko clean karo
+  // Token clean karo
   hfToken = hfToken.trim().replace(/\s+/g, '');
-  
-  // URL decode karo
   targetUrl = decodeURIComponent(targetUrl);
 
   try {
-    // 🔥 TRICK: Header ke sath-sath URL me bhi auth bhej rahe hain (Double Security)
+    // Header + URL dono me auth bhej rahe hain (Double Security)
     const separator = targetUrl.includes('?') ? '&' : '?';
     const finalUrl = `${targetUrl}${separator}auth=Bearer%20${hfToken}`;
 
     const fetchOptions = {
       method: req.method,
       headers: {
-        'Authorization': `Bearer ${hfToken}`, // Header method
+        'Authorization': `Bearer ${hfToken}`,
         'Content-Type': 'application/json',
       }
     };
@@ -51,7 +49,7 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       return res.status(response.status).json({ 
-        error: jsonData.error || jsonData.message || `HF API Error (Status: ${response.status})`,
+        error: jsonData.error || jsonData.message || `API Error (Status: ${response.status})`, 
         details: jsonData 
       });
     }
