@@ -26,7 +26,6 @@
       <button onclick="logout()" class="btn-danger btn-sm">Logout</button>
     </header>
 
-    <!-- SCROLLABLE TABS -->
     <div class="tabs-container">
       <div class="tabs">
         <button class="tab-btn active" onclick="openTab('inference', this)">⚡ Inference</button>
@@ -54,15 +53,38 @@
         </div>
       </div>
 
-      <!-- 2. REPOSITORIES -->
+      <!-- 2. REPOSITORIES & FILE MANAGER -->
       <div id="repos" class="tab-content">
-        <div class="card">
+        <!-- Step 1: List Repos -->
+        <div id="repoListView" class="card">
           <h3>Repositories</h3>
           <div class="btn-group">
-            <button onclick="fetchRepos()" class="btn-secondary">Read Repos</button>
+            <button onclick="fetchRepos()" class="btn-secondary">Refresh Repos</button>
             <button onclick="createRepo()" class="btn-primary">+ New Repo</button>
           </div>
-          <div id="repoList" class="list-container">Click read to load repos.</div>
+          <div id="repoList" class="list-container scrollable-list">Loading...</div>
+        </div>
+
+        <!-- Step 2: File Manager (Hidden initially) -->
+        <div id="fileManagerView" class="card hidden">
+          <button onclick="closeFileManager()" class="btn-secondary btn-sm" style="margin-bottom: 15px;">← Back to Repos</button>
+          <h3 id="repoTitle">Repo Name</h3>
+          
+          <div class="btn-group">
+            <button onclick="showNewFileForm()" class="btn-primary">+ Create New File</button>
+          </div>
+
+          <!-- File Editor Form (Hidden by default) -->
+          <div id="fileEditor" class="hidden" style="background: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <input type="text" id="fileNameInput" placeholder="File Name (e.g. data.csv, app.py)">
+            <textarea id="fileContentInput" placeholder="Paste or write your content here..." style="min-height: 200px;"></textarea>
+            <div class="btn-group" style="margin-bottom: 0;">
+              <button onclick="commitFile()" class="btn-primary" style="margin-bottom: 0;">Commit / Save File</button>
+              <button onclick="hideFileEditor()" class="btn-danger" style="margin-bottom: 0;">Cancel</button>
+            </div>
+          </div>
+
+          <div id="fileList" class="list-container scrollable-list">Loading files...</div>
         </div>
       </div>
 
@@ -74,14 +96,14 @@
             <input type="text" id="datasetSearch" placeholder="Search datasets (e.g., imdb)...">
             <button onclick="searchDatasets()" class="btn-primary">Search</button>
           </div>
-          <div id="datasetList" class="list-container">Enter text and click search.</div>
+          <div id="datasetList" class="list-container scrollable-list">Enter text and click search.</div>
         </div>
 
         <!-- Dataset Details View -->
         <div id="datasetDetails" class="card hidden">
-          <button onclick="closeDatasetDetails()" class="btn-secondary btn-sm" style="margin-bottom: 15px;">← Back</button>
+          <button onclick="closeDatasetDetails()" class="btn-secondary btn-sm" style="margin-bottom: 15px;">← Back to Results</button>
           <h3 id="dsTitle">Dataset Title</h3>
-          <div id="dsContent"></div>
+          <div id="dsContent" class="scrollable-list"></div>
         </div>
       </div>
 
@@ -93,7 +115,7 @@
             <button onclick="fetchWebhooks()" class="btn-secondary">Read Webhooks</button>
             <button onclick="createWebhook()" class="btn-primary">+ Create Webhook</button>
           </div>
-          <div id="webhookList" class="list-container">Loading...</div>
+          <div id="webhookList" class="list-container scrollable-list">Loading...</div>
         </div>
       </div>
 
@@ -102,7 +124,7 @@
         <div class="card">
           <h3>Jobs</h3>
           <button onclick="fetchJobs()" class="btn-secondary">Read Jobs</button>
-          <div id="jobList" class="list-container">Loading...</div>
+          <div id="jobList" class="list-container scrollable-list">Loading...</div>
         </div>
       </div>
 
@@ -111,7 +133,7 @@
         <div class="card">
           <h3>Collections</h3>
           <button onclick="fetchCollections()" class="btn-secondary">Read Collections</button>
-          <div id="collectionList" class="list-container">Loading...</div>
+          <div id="collectionList" class="list-container scrollable-list">Loading...</div>
         </div>
       </div>
 
@@ -121,7 +143,7 @@
           <h3>Discussions & PRs</h3>
           <input type="text" id="discRepo" placeholder="Model ID (e.g. gpt2)">
           <button onclick="fetchDiscussions()" class="btn-secondary">Read Discussions</button>
-          <div id="discussionList" class="list-container">Loading...</div>
+          <div id="discussionList" class="list-container scrollable-list">Loading...</div>
         </div>
       </div>
 
@@ -130,7 +152,7 @@
         <div class="card">
           <h3>Notifications</h3>
           <button onclick="fetchNotifications()" class="btn-secondary">Read Inbox</button>
-          <div id="notifList" class="list-container">Loading...</div>
+          <div id="notifList" class="list-container scrollable-list">Loading...</div>
         </div>
       </div>
 
