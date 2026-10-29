@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  // CORS Setup
+  // CORS setup
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -9,21 +9,28 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  const hfToken = req.headers['x-hf-token'];
+  let hfToken = req.headers['x-hf-token'];
   let targetUrl = req.query.url;
 
   if (!hfToken || !targetUrl) {
-    return res.status(400).json({ error: "Missing Token or URL in request" });
+    return res.status(400).json({ error: "Missing Token or URL" });
   }
 
-  // 🛠️ FIX: Agar URL me extra slash hai, toh theek karo
-  targetUrl = decodeURIComponent(targetUrl).replace(/([^:]\/)\/+/g, "$1");
+  // Token ko clean karo
+  hfToken = hfToken.trim().replace(/\s+/g, '');
+  
+  // URL decode karo
+  targetUrl = decodeURIComponent(targetUrl);
 
   try {
+    // 🔥 TRICK: Header ke sath-sath URL me bhi auth bhej rahe hain (Double Security)
+    const separator = targetUrl.includes('?') ? '&' : '?';
+    const finalUrl = `${targetUrl}${separator}auth=Bearer%20${hfToken}`;
+
     const fetchOptions = {
       method: req.method,
       headers: {
-        'Authorization': `Bearer ${hfToken.trim()}`,
+        'Authorization': `Bearer ${hfToken}`, // Header method
         'Content-Type': 'application/json',
       }
     };
@@ -32,18 +39,16 @@ export default async function handler(req, res) {
       fetchOptions.body = JSON.stringify(req.body);
     }
 
-    const response = await fetch(targetUrl, fetchOptions);
+    const response = await fetch(finalUrl, fetchOptions);
     
-    // Status Code aur Text padho
     const textData = await response.text();
     let jsonData;
     try {
       jsonData = JSON.parse(textData);
     } catch (e) {
-      jsonData = { message: textData || "Unknown response from HF" };
+      jsonData = { message: textData };
     }
 
-    // Agar HF ne error diya (401, 403, 404 etc.)
     if (!response.ok) {
       return res.status(response.status).json({ 
         error: jsonData.error || jsonData.message || `HF API Error (Status: ${response.status})`,
@@ -51,11 +56,9 @@ export default async function handler(req, res) {
       });
     }
 
-    // Success Response
     res.status(200).json(jsonData);
 
   } catch (error) {
-    // Network ya Server error
-    res.status(500).json({ error: "Proxy Server Error: " + error.message });
+    res.status(500).json({ error: "Proxy Error: " + error.message });
   }
 }
