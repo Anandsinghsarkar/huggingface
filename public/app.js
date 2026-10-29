@@ -1,4 +1,4 @@
-// 🔥 localStorage ka use kiya taaki disconnect na ho
+// 🔥 Permanent Token (Local Storage)
 let HF_TOKEN = localStorage.getItem('hf_token') || '';
 let currentRepo = '';
 
@@ -20,7 +20,6 @@ function toggleLogs() {
   const consoleBox = document.getElementById('logConsole');
   if(consoleBox.classList.contains('hidden')) {
     consoleBox.classList.remove('hidden');
-    // Auto scroll to bottom
     const body = document.getElementById('logBody');
     body.scrollTop = body.scrollHeight;
   } else {
@@ -105,10 +104,7 @@ function openTab(tabId, btn) {
 }
 
 async function callHF(endpoint, method = 'GET', body = null) {
-  if (!HF_TOKEN) {
-    log("No token found. Please login.", "error");
-    return { error: "No token" };
-  }
+  if (!HF_TOKEN) return { error: "No token" };
 
   const url = `https://huggingface.co${endpoint}`;
   const opt = { method, headers: { 'x-hf-token': HF_TOKEN } };
@@ -119,7 +115,6 @@ async function callHF(endpoint, method = 'GET', body = null) {
   
   try {
     const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`, opt);
-    
     if (res.status === 401) {
       log("Token expired. Please reconnect.", "error");
       logout();
@@ -127,7 +122,6 @@ async function callHF(endpoint, method = 'GET', body = null) {
     }
     return await res.json();
   } catch(e) {
-    log(`Network Error: ${e.message}`, "error");
     return { error: e.message };
   }
 }
@@ -168,7 +162,7 @@ async function fetchRepos() {
   list.innerText = 'Loading...';
   log("Fetching repos...", "info");
   
-  const data = await callHF('/api/models?author=Anandsinghsarkar'); // Apna username
+  const data = await callHF('/api/models?author=Anandsinghsarkar'); // Apna username yahan daalein
   
   if (Array.isArray(data)) {
     list.innerHTML = data.map(r => `
@@ -177,7 +171,9 @@ async function fetchRepos() {
       </div>
     `).join('') || 'No repos found.';
     log("Repos loaded", "success");
-  } else { list.innerText = JSON.stringify(data); }
+  } else { 
+    list.innerText = data.error ? `Error: ${data.error}` : JSON.stringify(data); 
+  }
 }
 
 async function createRepo() {
@@ -218,7 +214,7 @@ async function fetchRepoFiles() {
     `).join('') || 'No files in this repo.';
     log(`${data.siblings.length} files loaded.`, "success");
   } else {
-    list.innerText = JSON.stringify(data);
+    list.innerText = data.error ? `Error: ${data.error}` : JSON.stringify(data);
     log(`Error loading files: ${data.error}`, "error");
   }
 }
@@ -356,46 +352,124 @@ function closeDatasetDetails() {
 }
 
 // ==========================================
-// 4. WEBHOOKS
+// 4. WEBHOOKS (Fixed)
 // ==========================================
 async function fetchWebhooks() {
   const list = document.getElementById('webhookList');
   list.innerText = 'Loading...';
-  const data = await callHF('/api/webhooks');
+  log("Fetching Webhooks...", "info");
+  
+  // HF me webhooks check karne ke liye user ID ya org ID chahiye hoti hai
+  const userInfo = await callHF('/api/whoami-v2');
+  
+  if (userInfo.error) {
+    list.innerHTML = `<span style="color:red">Error: ${userInfo.error}</span>`;
+    return;
+  }
+  
+  // User ID ke sath webhooks fetch karna
+  const data = await callHF(`/api/webhooks?user=${userInfo.id}`);
+  
   if (Array.isArray(data)) {
-    list.innerHTML = data.map(w => `<div class="list-item"><strong>${w.url}</strong><br><small>ID: ${w.id}</small></div>`).join('') || 'No webhooks.';
-  } else { list.innerText = JSON.stringify(data); }
+    if (data.length === 0) { list.innerHTML = 'No webhooks found.'; return; }
+    list.innerHTML = data.map(w => `
+      <div class="list-item">
+        <strong>${w.url}</strong><br>
+        <small>Target: ${w.watched ? w.watched.length : 0} items | ID: ${w.id}</small>
+      </div>
+    `).join('');
+    log("Webhooks loaded", "success");
+  } else if (data.error) {
+    list.innerHTML = `<span style="color:red">Error: ${data.error}</span>`;
+    log(`Webhook error: ${data.error}`, "error");
+  } else {
+    list.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+  }
 }
 
 async function createWebhook() {
-  const url = prompt("Enter Webhook URL:");
+  const url = prompt("Enter Webhook URL (e.g. https://webhook.site/...):");
   if (!url) return;
-  const data = await callHF('/api/webhooks', 'POST', { url: url, watched: [{ type: "user" }] });
-  if (data.id) { fetchWebhooks(); } else { alert(JSON.stringify(data)); }
+  
+  log("Creating Webhook...", "info");
+  const data = await callHF('/api/webhooks', 'POST', { 
+    url: url, 
+    watched: [{ type: "user" }] 
+  });
+  
+  if (data.id) { 
+    log(`✅ Webhook Created`, "success"); 
+    fetchWebhooks(); 
+  } else { 
+    log(`❌ Webhook Failed: ${data.error}`, "error");
+    alert(JSON.stringify(data, null, 2)); 
+  }
 }
 
 // ==========================================
-// 5. JOBS
+// 5. JOBS (Fixed)
 // ==========================================
 async function fetchJobs() {
   const list = document.getElementById('jobList');
   list.innerText = 'Loading...';
+  log("Fetching Jobs...", "info");
+  
+  // Jobs fetch karne ke liye sahi endpoint
   const data = await callHF('/api/jobs');
+  
   if (Array.isArray(data)) {
-    list.innerHTML = data.map(j => `<div class="list-item"><strong>Job: ${j.id}</strong><br><small>Status: ${j.status}</small></div>`).join('') || 'No jobs.';
-  } else { list.innerText = JSON.stringify(data); }
+    if (data.length === 0) { 
+      list.innerHTML = 'No active jobs found.'; 
+      log("No jobs found", "info");
+      return; 
+    }
+    list.innerHTML = data.map(j => `
+      <div class="list-item">
+        <strong>Job ID: ${j.id}</strong><br>
+        <small>Status: ${j.status} | Created: ${new Date(j.created_at).toLocaleString()}</small>
+      </div>
+    `).join('');
+    log("Jobs loaded", "success");
+  } else if (data.error) {
+    list.innerHTML = `<span style="color:red">Error: ${data.error}</span>`;
+    log(`Job error: ${data.error}`, "error");
+  } else {
+    list.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+  }
 }
 
 // ==========================================
-// 6. COLLECTIONS
+// 6. COLLECTIONS (Fixed)
 // ==========================================
 async function fetchCollections() {
   const list = document.getElementById('collectionList');
   list.innerText = 'Loading...';
-  const data = await callHF('/api/collections');
+  log("Fetching Collections...", "info");
+  
+  const userInfo = await callHF('/api/whoami-v2');
+  if (userInfo.error) {
+    list.innerHTML = `<span style="color:red">Error: ${userInfo.error}</span>`;
+    return;
+  }
+  
+  // Specific user ki collections fetch karna
+  const data = await callHF(`/api/collections?owner=${userInfo.name}`);
+  
   if (Array.isArray(data)) {
-    list.innerHTML = data.map(c => `<div class="list-item"><strong>${c.title}</strong><br><small>Slug: ${c.slug}</small></div>`).join('') || 'No collections.';
-  } else { list.innerText = JSON.stringify(data); }
+    if (data.length === 0) { list.innerHTML = 'No collections found.'; return; }
+    list.innerHTML = data.map(c => `
+      <div class="list-item">
+        <strong>${c.title}</strong><br>
+        <small>Slug: ${c.slug} | Items: ${c.items ? c.items.length : 0}</small>
+      </div>
+    `).join('');
+    log("Collections loaded", "success");
+  } else if (data.error) {
+    list.innerHTML = `<span style="color:red">Error: ${data.error}</span>`;
+    log(`Collection error: ${data.error}`, "error");
+  } else {
+    list.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+  }
 }
 
 // ==========================================
@@ -406,30 +480,82 @@ async function fetchDiscussions() {
   const list = document.getElementById('discussionList');
   if (!repo) { alert("Enter model ID first"); return; }
   list.innerText = 'Loading...';
+  log(`Fetching Discussions for ${repo}...`, "info");
+  
   const data = await callHF(`/api/models/${repo}/discussions`);
+  
   if (Array.isArray(data)) {
-    list.innerHTML = data.map(d => `<div class="list-item"><strong>${d.title}</strong><br><small>By: ${d.author.name}</small></div>`).join('') || 'No discussions.';
-  } else { list.innerText = JSON.stringify(data); }
+    if(data.length === 0) { list.innerHTML = "No discussions found."; return; }
+    list.innerHTML = data.map(d => `
+      <div class="list-item">
+        <strong>${d.title}</strong><br>
+        <small>By: ${d.author ? d.author.name : 'Unknown'} | ${d.is_pull_request ? 'PR' : 'Discussion'}</small>
+      </div>
+    `).join('');
+    log("Discussions loaded", "success");
+  } else if (data.error) {
+    list.innerHTML = `<span style="color:red">Error: ${data.error}</span>`;
+  } else { 
+    list.innerText = JSON.stringify(data); 
+  }
 }
 
 // ==========================================
-// 8. NOTIFICATIONS
+// 8. NOTIFICATIONS (Fixed)
 // ==========================================
 async function fetchNotifications() {
   const list = document.getElementById('notifList');
   list.innerText = 'Loading...';
+  log("Fetching Notifications...", "info");
+  
+  // HF Notifications API ka sahi endpoint
   const data = await callHF('/api/notifications');
+  
   if (Array.isArray(data)) {
-    list.innerHTML = data.map(n => `<div class="list-item"><strong>${n.title || 'Notification'}</strong><br><small>${n.read ? '✅ Read' : '🔴 Unread'}</small></div>`).join('') || 'Inbox clean!';
-  } else { list.innerText = JSON.stringify(data); }
+    if (data.length === 0) { list.innerHTML = 'Inbox is clean!'; return; }
+    list.innerHTML = data.map(n => `
+      <div class="list-item">
+        <strong>${n.title || 'Notification'}</strong><br>
+        <small>${n.read ? '✅ Read' : '🔴 Unread'} | Type: ${n.type || 'System'}</small>
+      </div>
+    `).join('');
+    log("Notifications loaded", "success");
+  } else if (data.error) {
+    list.innerHTML = `<span style="color:red">Error: ${data.error}</span>`;
+    log(`Notification error: ${data.error}`, "error");
+  } else {
+    list.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+  }
 }
 
 // ==========================================
-// 9. BILLING
+// 9. BILLING (Fixed)
 // ==========================================
 async function fetchBilling() {
   const result = document.getElementById('billingResult');
   result.innerText = 'Loading...';
-  const data = await callHF('/api/billing');
-  result.innerText = JSON.stringify(data, null, 2);
+  log("Fetching Billing Info...", "info");
+  
+  // Billing info user profile se aati hai
+  const data = await callHF('/api/whoami-v2');
+  
+  if (data.error) {
+    result.innerText = `Error: ${data.error}`;
+    log(`Billing error: ${data.error}`, "error");
+    return;
+  }
+
+  // User ke billing details format karna
+  const billingInfo = {
+    Username: data.name,
+    FullName: data.fullname || 'N/A',
+    Email: data.email || 'N/A',
+    Plan: data.isPro ? 'PRO' : 'FREE',
+    BillingMode: data.billingMode || 'N/A',
+    CanPay: data.canPay ? 'Yes' : 'No',
+    PeriodEnd: data.periodEnd ? new Date(data.periodEnd * 1000).toLocaleDateString() : 'N/A'
+  };
+
+  result.innerText = JSON.stringify(billingInfo, null, 2);
+  log("Billing info loaded", "success");
 }
