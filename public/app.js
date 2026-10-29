@@ -1,6 +1,7 @@
-// 🔥 Permanent Token (Local Storage)
+// 🔥 Permanent Token (Local Storage) - Disconnect hoga sirf manual logout se
 let HF_TOKEN = localStorage.getItem('hf_token') || '';
 let currentRepo = '';
+let loggedInUser = '';
 
 // ==========================================
 // LOGGER SYSTEM & UI TOGGLE
@@ -34,10 +35,22 @@ window.onload = () => {
   if (HF_TOKEN) {
     log("Session found. Auto-connecting...", "success");
     showDashboard(); 
+    // Background me user info fetch kar lete hain
+    fetchUserInfo();
   } else {
     log("Ready to connect.", "info");
   }
 };
+
+async function fetchUserInfo() {
+  try {
+    const res = await fetch(`/api/proxy?url=${encodeURIComponent('https://huggingface.co/api/whoami-v2')}`, {
+      headers: { 'x-hf-token': HF_TOKEN }
+    });
+    const data = await res.json();
+    if (data.name) loggedInUser = data.name;
+  } catch(e) { console.log("Could not fetch user info"); }
+}
 
 function showDashboard() { 
   document.getElementById('loginScreen').classList.add('hidden'); 
@@ -66,6 +79,7 @@ async function login() {
     
     if (res.ok && data.name) {
       HF_TOKEN = token; 
+      loggedInUser = data.name;
       localStorage.setItem('hf_token', token); 
       log(`✅ Welcome, ${data.name}!`, "success"); 
       showDashboard();
@@ -81,6 +95,7 @@ async function login() {
   }
 }
 
+// Sirf tab logout hoga jab aap button dabayenge
 function logout() { 
   localStorage.removeItem('hf_token'); 
   log("Logging out...", "warn");
@@ -88,7 +103,7 @@ function logout() {
 }
 
 // ==========================================
-// NAVIGATION & API HELPER
+// NAVIGATION & API HELPER (Auto-logout removed)
 // ==========================================
 function openTab(tabId, btn) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -115,10 +130,10 @@ async function callHF(endpoint, method = 'GET', body = null) {
   
   try {
     const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`, opt);
+    
+    // 🔥 FIX: Agar token invalid hai (401), toh sirf error return karo, logout mat karo
     if (res.status === 401) {
-      log("Token expired. Please reconnect.", "error");
-      logout();
-      return { error: "Unauthorized" };
+      return { error: "Unauthorized: Token is invalid or expired. Please logout and login again." };
     }
     return await res.json();
   } catch(e) {
@@ -162,7 +177,10 @@ async function fetchRepos() {
   list.innerText = 'Loading...';
   log("Fetching repos...", "info");
   
-  const data = await callHF('/api/models?author=Anandsinghsarkar'); // Apna username yahan daalein
+  if(!loggedInUser) await fetchUserInfo();
+  
+  // Dynamic Username use kar rahe hain
+  const data = await callHF(`/api/models?author=${loggedInUser || 'Anandsinghsarkar'}`); 
   
   if (Array.isArray(data)) {
     list.innerHTML = data.map(r => `
@@ -352,30 +370,35 @@ function closeDatasetDetails() {
 }
 
 // ==========================================
-// 4. WEBHOOKS (Fixed)
+// 4. WEBHOOKS (Fixed completely)
 // ==========================================
 async function fetchWebhooks() {
   const list = document.getElementById('webhookList');
   list.innerText = 'Loading...';
   log("Fetching Webhooks...", "info");
   
-  // HF me webhooks check karne ke liye user ID ya org ID chahiye hoti hai
-  const userInfo = await callHF('/api/whoami-v2');
+  if(!loggedInUser) await fetchUserInfo();
   
-  if (userInfo.error) {
-    list.innerHTML = `<span style="color:red">Error: ${userInfo.error}</span>`;
+  // Hugging Face strictly user ID maangta hai webhooks ke liye
+  const userInfo = await callHF('/api/whoami-v2');
+  if (userInfo.error || !userInfo.id) {
+    list.innerHTML = `<span style="color:red">Could not verify user ID.</span>`;
     return;
   }
   
-  // User ID ke sath webhooks fetch karna
+  // Endpoint: /api/webhooks?user=ID
   const data = await callHF(`/api/webhooks?user=${userInfo.id}`);
   
   if (Array.isArray(data)) {
-    if (data.length === 0) { list.innerHTML = 'No webhooks found.'; return; }
+    if (data.length === 0) { 
+      list.innerHTML = 'No webhooks found. Click "+ Create Webhook" to make one.';
+      log("No webhooks found", "info");
+      return; 
+    }
     list.innerHTML = data.map(w => `
       <div class="list-item">
         <strong>${w.url}</strong><br>
-        <small>Target: ${w.watched ? w.watched.length : 0} items | ID: ${w.id}</small>
+        <small>Status: ${w.disabled ? '❌ Disabled' : '✅ Active'} | ID: ${w.id}</small>
       </div>
     `).join('');
     log("Webhooks loaded", "success");
@@ -388,33 +411,37 @@ async function fetchWebhooks() {
 }
 
 async function createWebhook() {
-  const url = prompt("Enter Webhook URL (e.g. https://webhook.site/...):");
+  const url = prompt("Enter Webhook Target URL (e.g. https://webhook.site/xyz):");
   if (!url) return;
   
   log("Creating Webhook...", "info");
-  const data = await callHF('/api/webhooks', 'POST', { 
-    url: url, 
-    watched: [{ type: "user" }] 
-  });
+  // HF Webhook needs specific structure
+  const payload = {
+    url: url,
+    watched: [{ type: "user" }]
+  };
+  
+  const data = await callHF('/api/webhooks', 'POST', payload);
   
   if (data.id) { 
     log(`✅ Webhook Created`, "success"); 
     fetchWebhooks(); 
   } else { 
     log(`❌ Webhook Failed: ${data.error}`, "error");
-    alert(JSON.stringify(data, null, 2)); 
+    alert("Error creating webhook:\n" + JSON.stringify(data, null, 2)); 
   }
 }
 
 // ==========================================
-// 5. JOBS (Fixed)
+// 5. JOBS (Fixed completely)
 // ==========================================
 async function fetchJobs() {
   const list = document.getElementById('jobList');
   list.innerText = 'Loading...';
   log("Fetching Jobs...", "info");
   
-  // Jobs fetch karne ke liye sahi endpoint
+  // Jobs API in HF: /api/jobs (Without token sometimes it fails, but with Fine-grained it should work)
+  // Alternative: Some jobs are under /api/jobs/scheduled or /api/jobs/pipelines
   const data = await callHF('/api/jobs');
   
   if (Array.isArray(data)) {
@@ -426,34 +453,30 @@ async function fetchJobs() {
     list.innerHTML = data.map(j => `
       <div class="list-item">
         <strong>Job ID: ${j.id}</strong><br>
-        <small>Status: ${j.status} | Created: ${new Date(j.created_at).toLocaleString()}</small>
+        <small>Status: ${j.status || 'unknown'} | Created: ${j.created_at ? new Date(j.created_at).toLocaleString() : 'N/A'}</small>
       </div>
     `).join('');
     log("Jobs loaded", "success");
   } else if (data.error) {
-    list.innerHTML = `<span style="color:red">Error: ${data.error}</span>`;
-    log(`Job error: ${data.error}`, "error");
+    // Agar user ke paas jobs nahi hain toh HF direct error deta hai
+    list.innerHTML = `<span style="color:#f59e0b">${data.error}</span><br><small>Note: You might not have any active Jobs or the token lacks specific job permissions.</small>`;
+    log(`Job fetch info: ${data.error}`, "warn");
   } else {
     list.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
   }
 }
 
 // ==========================================
-// 6. COLLECTIONS (Fixed)
+// 6. COLLECTIONS
 // ==========================================
 async function fetchCollections() {
   const list = document.getElementById('collectionList');
   list.innerText = 'Loading...';
   log("Fetching Collections...", "info");
   
-  const userInfo = await callHF('/api/whoami-v2');
-  if (userInfo.error) {
-    list.innerHTML = `<span style="color:red">Error: ${userInfo.error}</span>`;
-    return;
-  }
+  if(!loggedInUser) await fetchUserInfo();
   
-  // Specific user ki collections fetch karna
-  const data = await callHF(`/api/collections?owner=${userInfo.name}`);
+  const data = await callHF(`/api/collections?owner=${loggedInUser}`);
   
   if (Array.isArray(data)) {
     if (data.length === 0) { list.innerHTML = 'No collections found.'; return; }
@@ -501,14 +524,13 @@ async function fetchDiscussions() {
 }
 
 // ==========================================
-// 8. NOTIFICATIONS (Fixed)
+// 8. NOTIFICATIONS
 // ==========================================
 async function fetchNotifications() {
   const list = document.getElementById('notifList');
   list.innerText = 'Loading...';
   log("Fetching Notifications...", "info");
   
-  // HF Notifications API ka sahi endpoint
   const data = await callHF('/api/notifications');
   
   if (Array.isArray(data)) {
@@ -529,14 +551,13 @@ async function fetchNotifications() {
 }
 
 // ==========================================
-// 9. BILLING (Fixed)
+// 9. BILLING
 // ==========================================
 async function fetchBilling() {
   const result = document.getElementById('billingResult');
   result.innerText = 'Loading...';
   log("Fetching Billing Info...", "info");
   
-  // Billing info user profile se aati hai
   const data = await callHF('/api/whoami-v2');
   
   if (data.error) {
@@ -545,7 +566,6 @@ async function fetchBilling() {
     return;
   }
 
-  // User ke billing details format karna
   const billingInfo = {
     Username: data.name,
     FullName: data.fullname || 'N/A',
