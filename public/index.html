@@ -53,9 +53,8 @@
         </div>
       </div>
 
-      <!-- 2. REPOSITORIES & FILE MANAGER -->
+      <!-- 2. REPOSITORIES -->
       <div id="repos" class="tab-content">
-        <!-- Step 1: List Repos -->
         <div id="repoListView" class="card">
           <h3>Repositories</h3>
           <div class="btn-group">
@@ -65,25 +64,20 @@
           <div id="repoList" class="list-container scrollable-list">Loading...</div>
         </div>
 
-        <!-- Step 2: File Manager (Hidden initially) -->
         <div id="fileManagerView" class="card hidden">
           <button onclick="closeFileManager()" class="btn-secondary btn-sm" style="margin-bottom: 15px;">← Back to Repos</button>
           <h3 id="repoTitle">Repo Name</h3>
-          
           <div class="btn-group">
             <button onclick="showNewFileForm()" class="btn-primary">+ Create New File</button>
           </div>
-
-          <!-- File Editor Form (Hidden by default) -->
           <div id="fileEditor" class="hidden" style="background: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-            <input type="text" id="fileNameInput" placeholder="File Name (e.g. data.csv, app.py)">
-            <textarea id="fileContentInput" placeholder="Paste or write your content here..." style="min-height: 200px;"></textarea>
+            <input type="text" id="fileNameInput" placeholder="File Name (e.g. data.csv)">
+            <textarea id="fileContentInput" placeholder="Paste or write content..." style="min-height: 150px;"></textarea>
             <div class="btn-group" style="margin-bottom: 0;">
-              <button onclick="commitFile()" class="btn-primary" style="margin-bottom: 0;">Commit / Save File</button>
+              <button onclick="commitFile()" class="btn-primary" style="margin-bottom: 0;">Save File</button>
               <button onclick="hideFileEditor()" class="btn-danger" style="margin-bottom: 0;">Cancel</button>
             </div>
           </div>
-
           <div id="fileList" class="list-container scrollable-list">Loading files...</div>
         </div>
       </div>
@@ -93,15 +87,13 @@
         <div class="card">
           <h3>Search Datasets</h3>
           <div class="search-group">
-            <input type="text" id="datasetSearch" placeholder="Search datasets (e.g., imdb)...">
+            <input type="text" id="datasetSearch" placeholder="Search (e.g., imdb)...">
             <button onclick="searchDatasets()" class="btn-primary">Search</button>
           </div>
           <div id="datasetList" class="list-container scrollable-list">Enter text and click search.</div>
         </div>
-
-        <!-- Dataset Details View -->
         <div id="datasetDetails" class="card hidden">
-          <button onclick="closeDatasetDetails()" class="btn-secondary btn-sm" style="margin-bottom: 15px;">← Back to Results</button>
+          <button onclick="closeDatasetDetails()" class="btn-secondary btn-sm" style="margin-bottom: 15px;">← Back</button>
           <h3 id="dsTitle">Dataset Title</h3>
           <div id="dsContent" class="scrollable-list"></div>
         </div>
@@ -113,7 +105,7 @@
           <h3>Webhooks</h3>
           <div class="btn-group">
             <button onclick="fetchWebhooks()" class="btn-secondary">Read Webhooks</button>
-            <button onclick="createWebhook()" class="btn-primary">+ Create Webhook</button>
+            <button onclick="createWebhook()" class="btn-primary">+ Create</button>
           </div>
           <div id="webhookList" class="list-container scrollable-list">Loading...</div>
         </div>
@@ -140,9 +132,9 @@
       <!-- 7. DISCUSSIONS -->
       <div id="discussions" class="tab-content">
         <div class="card">
-          <h3>Discussions & PRs</h3>
+          <h3>Discussions</h3>
           <input type="text" id="discRepo" placeholder="Model ID (e.g. gpt2)">
-          <button onclick="fetchDiscussions()" class="btn-secondary">Read Discussions</button>
+          <button onclick="fetchDiscussions()" class="btn-secondary">Read</button>
           <div id="discussionList" class="list-container scrollable-list">Loading...</div>
         </div>
       </div>
@@ -168,11 +160,13 @@
     </div>
   </div>
 
-  <!-- 🔥 LIVE LOGS CONSOLE -->
-  <div id="logConsole" class="log-console">
+  <!-- 🔥 NEW: Floating Logs Button & Panel -->
+  <button id="logBtn" class="floating-log-btn" onclick="toggleLogs()">🖥️ Logs</button>
+  
+  <div id="logConsole" class="log-console hidden">
     <div class="log-header">
       <span>🖥️ System Logs</span>
-      <button onclick="clearLogs()">Clear</button>
+      <button onclick="toggleLogs()" class="btn-danger btn-sm" style="padding: 2px 8px;">Close</button>
     </div>
     <div id="logBody" class="log-body">
       <div class="log-info">[System] Ready...</div>
