@@ -1,8 +1,8 @@
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-body { background: #0f172a; color: #f8fafc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+body { background: #0f172a; color: #f8fafc; height: 100vh; display: flex; flex-direction: column; overflow-y: auto; }
 
 /* Login */
-.login-container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.login-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 10; }
 .login-box { background: #1e293b; padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
 .login-box h2 { margin-bottom: 10px; font-size: 24px; }
 .login-box p { color: #94a3b8; margin-bottom: 20px; font-size: 14px; }
@@ -10,7 +10,7 @@ body { background: #0f172a; color: #f8fafc; height: 100vh; display: flex; flex-d
 
 /* Dashboard */
 .hidden { display: none !important; }
-header { display: flex; justify-content: space-between; padding: 15px 20px; background: #1e293b; align-items: center; border-bottom: 1px solid #334155; }
+header { display: flex; justify-content: space-between; padding: 15px 20px; background: #1e293b; align-items: center; border-bottom: 1px solid #334155; flex-shrink: 0; }
 header h2 { font-size: 18px; }
 
 /* Tabs */
@@ -21,7 +21,7 @@ header h2 { font-size: 18px; }
 .tab-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
 
 /* Content Area */
-.content-area { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 220px; }
+.content-area { flex: 1; padding: 15px; }
 .tab-content { display: none; }
 .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
@@ -34,7 +34,7 @@ textarea { min-height: 80px; resize: vertical; }
 
 /* Buttons */
 .btn-group { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-button { padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.2s; display: inline-block; text-align: center; }
+button { padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.2s; }
 .btn-primary { background: #3b82f6; color: white; width: 100%; margin-bottom: 10px; }
 .btn-secondary { background: #475569; color: white; width: 100%; margin-bottom: 10px; }
 .btn-danger { background: #ef4444; color: white; }
@@ -46,15 +46,16 @@ button:active { transform: scale(0.97); }
 .search-group input { margin-bottom: 0; flex: 1; }
 .search-group button { width: auto; margin-bottom: 0; }
 
-/* Lists & Pre */
+/* Lists & Scroll */
 pre { background: #0f172a; padding: 12px; border-radius: 8px; overflow-x: auto; color: #10b981; font-size: 12px; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #334155; }
 .list-container { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
 
-/* 🔥 SCROLLABLE LISTS */
+/* 🔥 SCROLLABLE LISTS (Fixes scroll issue) */
 .scrollable-list {
-  max-height: 400px; /* Isse zyada lamba hone par scroll aayega */
+  max-height: 50vh; /* Screen ka aadha hissa */
   overflow-y: auto;
   padding-right: 5px;
+  -webkit-overflow-scrolling: touch;
 }
 .scrollable-list::-webkit-scrollbar { width: 6px; }
 .scrollable-list::-webkit-scrollbar-track { background: #0f172a; border-radius: 4px; }
@@ -64,11 +65,13 @@ pre { background: #0f172a; padding: 12px; border-radius: 8px; overflow-x: auto; 
 .list-item strong { color: #e2e8f0; }
 .list-item small { color: #94a3b8; }
 
-/* Logs Console */
-.log-console { position: fixed; bottom: 0; left: 0; width: 100%; height: 180px; background: #000; border-top: 2px solid #334155; display: flex; flex-direction: column; z-index: 1000; }
-.log-header { background: #1e293b; padding: 6px 15px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: bold; color: #94a3b8; }
-.log-header button { padding: 4px 8px; font-size: 11px; background: #ef4444; margin: 0; width: auto; }
-.log-body { flex: 1; overflow-y: auto; padding: 8px 12px; font-family: monospace; font-size: 12px; line-height: 1.4; }
+/* 🔥 FLOATING LOGS BUTTON & PANEL */
+.floating-log-btn { position: fixed; bottom: 20px; right: 20px; background: #3b82f6; color: white; padding: 12px 20px; border-radius: 30px; font-size: 14px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 1000; border: 2px solid #1e293b; }
+.floating-log-btn:hover { background: #2563eb; }
+
+.log-console { position: fixed; bottom: 80px; right: 20px; width: calc(100% - 40px); max-width: 400px; height: 250px; background: #000; border: 1px solid #334155; border-radius: 12px; display: flex; flex-direction: column; z-index: 1000; box-shadow: 0 5px 20px rgba(0,0,0,0.8); }
+.log-header { background: #1e293b; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: bold; color: #94a3b8; border-radius: 12px 12px 0 0; }
+.log-body { flex: 1; overflow-y: auto; padding: 10px; font-family: monospace; font-size: 12px; line-height: 1.4; }
 .log-info { color: #3b82f6; }
 .log-success { color: #10b981; }
 .log-error { color: #ef4444; }
