@@ -1,6 +1,5 @@
 let HF_TOKEN = sessionStorage.getItem('hf_token') || '';
 
-// 🔥 Logger Function
 function log(message, type = 'info') {
   const logBody = document.getElementById('logBody');
   const time = new Date().toLocaleTimeString();
@@ -8,7 +7,7 @@ function log(message, type = 'info') {
   div.className = `log-${type}`;
   div.innerText = `[${time}] ${message}`;
   logBody.appendChild(div);
-  logBody.scrollTop = logBody.scrollHeight; // Auto-scroll to bottom
+  logBody.scrollTop = logBody.scrollHeight;
 }
 
 function clearLogs() {
@@ -30,13 +29,16 @@ function showDashboard() {
   document.getElementById('dashboard').classList.remove('hidden');
 }
 
-// 🚀 LOGIN FUNCTION WITH DEEP LOGGING
+// 🚀 FINAL FIXED LOGIN FUNCTION
 async function login() {
-  const token = document.getElementById('tokenInput').value.trim();
+  const rawToken = document.getElementById('tokenInput').value;
   const errorBox = document.getElementById('loginError');
   
-  if (!token.startsWith('hf_')) {
-    errorBox.innerText = 'Invalid format. Token must start with "hf_"';
+  // Clean token (remove all spaces/newlines)
+  const token = rawToken.replace(/\s+/g, '');
+
+  if (!token.startsWith('hf_') || token.length < 30) {
+    errorBox.innerText = 'Invalid format. Token must start with "hf_".';
     log("Login Failed: Token format invalid.", "error");
     return;
   }
@@ -46,32 +48,34 @@ async function login() {
   log(`Attempting to connect with token: ${token.substring(0, 7)}...`, "info");
 
   try {
-    // Proxy ke through Whoami call
-    const response = await fetch(`/api/proxy?url=${encodeURIComponent('https://huggingface.co/api/whoami')}`, {
+    const targetUrl = 'https://huggingface.co/api/whoami-v2';
+    
+    // Proxy call with clean token
+    const response = await fetch(`/api/proxy?url=${encodeURIComponent(targetUrl)}`, {
       method: 'GET',
-      headers: { 'x-hf-token': token }
+      headers: { 
+        'x-hf-token': token,
+        'Accept': 'application/json'
+      }
     });
 
     const data = await response.json();
-    log("Proxy Response Status: " + response.status, "info");
+    log(`Proxy Status: ${response.status}`, "info");
 
     if (response.ok && data.name) {
-      log(`✅ Success! Welcome, ${data.name}`, "success");
+      log(`✅ Welcome, ${data.name}!`, "success");
       HF_TOKEN = token;
       sessionStorage.setItem('hf_token', token);
       showDashboard();
     } else {
-      // Proxy ne error bheja
-      const errorMsg = data.error || data.message || "Unknown Error";
+      const errorMsg = data.error || "Unknown Error";
       log(`❌ Login Failed: ${errorMsg}`, "error");
-      if (data.details) log(`Details: ${JSON.stringify(data.details)}`, "warn");
-      
       errorBox.innerText = errorMsg;
       errorBox.style.color = '#ef4444';
     }
   } catch (err) {
-    log(`❌ Network/Proxy Error: ${err.message}`, "error");
-    errorBox.innerText = "Network Error. Check logs below.";
+    log(`❌ Network Error: ${err.message}`, "error");
+    errorBox.innerText = "Network Error. Check logs.";
     errorBox.style.color = '#ef4444';
   }
 }
@@ -91,7 +95,7 @@ function openTab(tabId, btnElement) {
 }
 
 // ==========================================
-// TAB 1: INFERENCE
+// INFERENCE
 // ==========================================
 async function runInference() {
   const model = document.getElementById('infModel').value;
@@ -101,10 +105,9 @@ async function runInference() {
   if (!prompt) { log("Please enter a prompt.", "warn"); return; }
   
   resultBox.innerText = 'Generating...';
-  log(`Sending inference request to model: ${model}`, "info");
+  log(`Sending request to model: ${model}`, "info");
 
   try {
-    // Inference direct frontend se (CORS allowed)
     const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
       method: 'POST',
       headers: { 
@@ -124,11 +127,12 @@ async function runInference() {
 }
 
 // ==========================================
-// TAB 2: REPOSITORIES
+// REPOSITORIES
 // ==========================================
 async function fetchRepos() {
   const repoList = document.getElementById('repoList');
-  const username = prompt("Enter your Hugging Face Username:");
+  // Auto-fill username from logged-in user context (we can hardcode 'Anandsinghsarkar' or prompt)
+  const username = prompt("Enter your Hugging Face Username:", "Anandsinghsarkar");
   if (!username) return;
 
   repoList.innerHTML = 'Loading...';
@@ -149,7 +153,7 @@ async function fetchRepos() {
         </div>
       `).join('');
     } else {
-      log(`Error fetching repos: ${data.error || 'Unknown Error'}`, "error");
+      log(`Error: ${data.error || 'Unknown'}`, "error");
       repoList.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
     }
   } catch(e) {
@@ -160,7 +164,7 @@ async function fetchRepos() {
 async function createRepo() {
   const repoName = prompt("Enter new model name:");
   if (!repoName) return;
-  const username = prompt("Enter your HF Username:");
+  const username = prompt("Enter your HF Username:", "Anandsinghsarkar");
   
   log(`Creating repository: ${repoName}...`, "info");
   
@@ -185,7 +189,7 @@ async function createRepo() {
       alert("Success!\n" + JSON.stringify(data, null, 2));
       fetchRepos();
     } else {
-      log(`❌ Failed to create repo: ${data.error}`, "error");
+      log(`❌ Failed: ${data.error}`, "error");
       alert("Error: " + JSON.stringify(data, null, 2));
     }
   } catch(e) {
@@ -194,7 +198,7 @@ async function createRepo() {
 }
 
 // ==========================================
-// TAB 3: WEBHOOKS
+// WEBHOOKS
 // ==========================================
 async function fetchWebhooks() {
   const list = document.getElementById('webhookList');
@@ -216,7 +220,7 @@ async function fetchWebhooks() {
         </div>
       `).join('');
     } else if(data.error) {
-      log(`Webhook Error: ${data.error}`, "error");
+      log(`Error: ${data.error}`, "error");
       list.innerHTML = `<span style="color:red">Error: ${data.error}</span>`;
     } else {
       log("No webhooks found.", "warn");
