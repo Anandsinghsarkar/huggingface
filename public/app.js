@@ -1,10 +1,9 @@
-// 🔥 CHANGE 1: sessionStorage ki jagah localStorage use kiya
+// 🔥 localStorage ka use kiya taaki disconnect na ho
 let HF_TOKEN = localStorage.getItem('hf_token') || '';
 let currentRepo = '';
-let currentFileName = '';
 
 // ==========================================
-// LOGGER SYSTEM
+// LOGGER SYSTEM & UI TOGGLE
 // ==========================================
 function log(message, type = 'info') {
   const logBody = document.getElementById('logBody');
@@ -16,15 +15,25 @@ function log(message, type = 'info') {
   logBody.appendChild(div);
   logBody.scrollTop = logBody.scrollHeight;
 }
-function clearLogs() { document.getElementById('logBody').innerHTML = ''; log("Logs cleared.", "info"); }
+
+function toggleLogs() {
+  const consoleBox = document.getElementById('logConsole');
+  if(consoleBox.classList.contains('hidden')) {
+    consoleBox.classList.remove('hidden');
+    // Auto scroll to bottom
+    const body = document.getElementById('logBody');
+    body.scrollTop = body.scrollHeight;
+  } else {
+    consoleBox.classList.add('hidden');
+  }
+}
 
 // ==========================================
 // APP INIT & AUTH
 // ==========================================
 window.onload = () => { 
-  // Agar token save hai, toh direct dashboard kholo
   if (HF_TOKEN) {
-    log("Previous session found. Auto-connecting...", "success");
+    log("Session found. Auto-connecting...", "success");
     showDashboard(); 
   } else {
     log("Ready to connect.", "info");
@@ -38,11 +47,11 @@ function showDashboard() {
 
 async function login() {
   const tokenInput = document.getElementById('tokenInput');
-  const token = tokenInput.value.replace(/\s+/g, ''); // Saare spaces hatao
+  const token = tokenInput.value.replace(/\s+/g, ''); 
   const errorBox = document.getElementById('loginError');
   
-  if (!token.startsWith('hf_') || token.length < 30) { 
-    errorBox.innerText = 'Invalid token format. Must start with hf_'; 
+  if (!token.startsWith('hf_')) { 
+    errorBox.innerText = 'Invalid token format.'; 
     return; 
   }
   
@@ -58,9 +67,7 @@ async function login() {
     
     if (res.ok && data.name) {
       HF_TOKEN = token; 
-      // 🔥 CHANGE 2: localStorage me save kiya taaki permanent rahe
       localStorage.setItem('hf_token', token); 
-      
       log(`✅ Welcome, ${data.name}!`, "success"); 
       showDashboard();
     } else {
@@ -70,20 +77,19 @@ async function login() {
     }
   } catch (e) { 
     log(`❌ Network Error: ${e.message}`, "error"); 
-    errorBox.innerText = "Network Error. Check logs.";
+    errorBox.innerText = "Network Error.";
     errorBox.style.color = "#ef4444";
   }
 }
 
 function logout() { 
-  // 🔥 CHANGE 3: Sirf tab token delete hoga jab aap manually logout karenge
   localStorage.removeItem('hf_token'); 
-  log("Logging out & clearing token...", "warn");
+  log("Logging out...", "warn");
   setTimeout(() => location.reload(), 500);
 }
 
 // ==========================================
-// NAVIGATION & HELPERS
+// NAVIGATION & API HELPER
 // ==========================================
 function openTab(tabId, btn) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -99,21 +105,31 @@ function openTab(tabId, btn) {
 }
 
 async function callHF(endpoint, method = 'GET', body = null) {
+  if (!HF_TOKEN) {
+    log("No token found. Please login.", "error");
+    return { error: "No token" };
+  }
+
   const url = `https://huggingface.co${endpoint}`;
   const opt = { method, headers: { 'x-hf-token': HF_TOKEN } };
   if (body) { 
     opt.headers['Content-Type'] = 'application/json'; 
     opt.body = JSON.stringify(body); 
   }
-  const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`, opt);
   
-  // Agar token expire ho gaya ho (401), toh auto logout kar do
-  if (res.status === 401) {
-    log("Token expired or invalid. Please reconnect.", "error");
-    logout();
-    return { error: "Unauthorized" };
+  try {
+    const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`, opt);
+    
+    if (res.status === 401) {
+      log("Token expired. Please reconnect.", "error");
+      logout();
+      return { error: "Unauthorized" };
+    }
+    return await res.json();
+  } catch(e) {
+    log(`Network Error: ${e.message}`, "error");
+    return { error: e.message };
   }
-  return await res.json();
 }
 
 // ==========================================
@@ -145,15 +161,14 @@ async function runInference() {
 }
 
 // ==========================================
-// 2. REPOSITORIES & FILE MANAGER
+// 2. REPOSITORIES
 // ==========================================
 async function fetchRepos() {
   const list = document.getElementById('repoList');
   list.innerText = 'Loading...';
   log("Fetching repos...", "info");
   
-  // Note: Yahan 'Anandsinghsarkar' ki jagah aap dynamic username bhi laa sakte hain whoami se
-  const data = await callHF('/api/models?author=Anandsinghsarkar'); 
+  const data = await callHF('/api/models?author=Anandsinghsarkar'); // Apna username
   
   if (Array.isArray(data)) {
     list.innerHTML = data.map(r => `
@@ -170,13 +185,8 @@ async function createRepo() {
   if (!name) return;
   log(`Creating Repo ${name}...`, "info");
   const data = await callHF('/api/repos/create', 'POST', { name: name, type: "model", private: false });
-  if (data.url) { 
-    log(`✅ Repo Created`, "success"); 
-    fetchRepos(); 
-  } else { 
-    log(`❌ Failed: ${data.error}`, "error"); 
-    alert(JSON.stringify(data)); 
-  }
+  if (data.url) { log(`✅ Repo Created`, "success"); fetchRepos(); }
+  else { log(`❌ Failed: ${data.error}`, "error"); alert(JSON.stringify(data)); }
 }
 
 async function openFileManager(repoId) {
@@ -213,9 +223,7 @@ async function fetchRepoFiles() {
   }
 }
 
-// 🔥 FILE CREATION / EDITING LOGIC
 function showNewFileForm() {
-  currentFileName = ''; 
   document.getElementById('fileNameInput').value = '';
   document.getElementById('fileContentInput').value = '';
   document.getElementById('fileEditor').classList.remove('hidden');
@@ -223,14 +231,11 @@ function showNewFileForm() {
 }
 
 async function editFile(filename) {
-  currentFileName = filename;
   log(`Fetching content of ${filename}...`, "info");
-  
   try {
     const rawUrl = `https://huggingface.co/${currentRepo}/resolve/main/${filename}`;
     const res = await fetch(rawUrl);
-    
-    if(!res.ok) throw new Error("Could not fetch file content");
+    if(!res.ok) throw new Error("Could not fetch content");
     const content = await res.text();
     
     document.getElementById('fileNameInput').value = filename;
@@ -254,7 +259,6 @@ async function commitFile() {
   const content = document.getElementById('fileContentInput').value;
   
   if (!fileName) { alert("File name is required"); return; }
-  
   log(`Committing file ${fileName}...`, "info");
   
   try {
@@ -271,7 +275,7 @@ async function commitFile() {
     
     if (data.commitOid || data.success) {
       log(`✅ File saved successfully!`, "success");
-      alert("File Uploaded/Updated Successfully!");
+      alert("File Uploaded!");
       hideFileEditor();
       fetchRepoFiles();
     } else {
@@ -298,21 +302,16 @@ async function searchDatasets() {
 
   try {
     const data = await callHF(`/api/datasets?search=${encodeURIComponent(query)}&limit=30`);
-    
     if (Array.isArray(data)) {
       if (data.length === 0) { list.innerHTML = 'No datasets found.'; return; }
       log(`Found ${data.length} datasets.`, "success");
       
       list.innerHTML = data.map(ds => `
         <div class="list-item" style="cursor: pointer;" onclick="viewDatasetDetails('${ds.id}')">
-          <strong>${ds.id}</strong><br>
-          <small>⬇️ ${ds.downloads || 0} | ❤️ ${ds.likes || 0}</small>
-          <div style="margin-top: 5px; font-size: 12px; color: #94a3b8;">Tags: ${(ds.tags || []).slice(0, 3).join(', ')}</div>
+          <strong>${ds.id}</strong><br><small>⬇️ ${ds.downloads || 0} | ❤️ ${ds.likes || 0}</small>
         </div>
       `).join('');
-    } else {
-      list.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-    }
+    } else { list.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`; }
   } catch (error) { list.innerHTML = `Error: ${error.message}`; }
 }
 
@@ -331,18 +330,15 @@ async function viewDatasetDetails(datasetId) {
 
   try {
     const data = await callHF(`/api/datasets/${datasetId}`);
-    
     if (data.error) { content.innerHTML = `<span style="color:red">Error: ${data.error}</span>`; return; }
 
     let html = `
       <div class="list-item" style="border-left-color: #10b981;">
         <strong>Author:</strong> ${data.author || 'Unknown'}<br>
         <strong>Downloads:</strong> ${data.downloads || 0}<br>
-        <strong>Likes:</strong> ${data.likes || 0}<br>
         <strong>Last Modified:</strong> ${new Date(data.lastModified).toLocaleString()}<br>
       </div>
     `;
-
     if (data.siblings && data.siblings.length > 0) {
       html += `<h4 style="margin-top:15px; margin-bottom:5px;">Files (${data.siblings.length}):</h4>`;
       data.siblings.forEach(file => {
@@ -372,7 +368,7 @@ async function fetchWebhooks() {
 }
 
 async function createWebhook() {
-  const url = prompt("Enter Webhook Target URL:");
+  const url = prompt("Enter Webhook URL:");
   if (!url) return;
   const data = await callHF('/api/webhooks', 'POST', { url: url, watched: [{ type: "user" }] });
   if (data.id) { fetchWebhooks(); } else { alert(JSON.stringify(data)); }
