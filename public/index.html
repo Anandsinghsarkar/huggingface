@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HF Full API Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🤗 HF Control Center</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,66 +11,149 @@
   <!-- LOGIN SCREEN -->
   <div id="loginScreen" class="login-container">
     <div class="login-box">
-      <h2>🤗 Hugging Face API Manager</h2>
-      <p>Enter your Full Access Token to connect</p>
+      <h2>🤗 HF Manager</h2>
+      <p>Enter Full Access Token to connect</p>
       <input type="password" id="tokenInput" placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxxx">
-      <button onclick="login()">Connect to HF</button>
+      <button onclick="login()" class="btn-primary">Connect to HF</button>
       <p class="error" id="loginError"></p>
     </div>
   </div>
 
-  <!-- DASHBOARD (Hidden initially) -->
+  <!-- DASHBOARD -->
   <div id="dashboard" class="hidden">
     <header>
-      <h2>🤗 HF Control Center</h2>
-      <button onclick="logout()" class="logout-btn">Logout</button>
+      <h2>🤗 HF Center</h2>
+      <button onclick="logout()" class="btn-danger btn-sm">Logout</button>
     </header>
 
-    <div class="tabs">
-      <button class="tab-btn active" onclick="openTab('inference', this)">⚡ Inference (AI)</button>
-      <button class="tab-btn" onclick="openTab('repos', this)">📁 Repositories</button>
-      <button class="tab-btn" onclick="openTab('webhooks', this)">🔗 Webhooks</button>
-    </div>
-
-    <!-- TAB 1: INFERENCE -->
-    <div id="inference" class="tab-content active">
-      <div class="card">
-        <h3>Text Generation</h3>
-        <input type="text" id="infModel" value="gpt2" placeholder="Model ID">
-        <textarea id="infPrompt" placeholder="Enter prompt here..."></textarea>
-        <button onclick="runInference()">Generate Text</button>
-        <pre id="infResult"></pre>
+    <!-- SCROLLABLE TABS -->
+    <div class="tabs-container">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="openTab('inference', this)">⚡ Inference</button>
+        <button class="tab-btn" onclick="openTab('repos', this)">📁 Repos</button>
+        <button class="tab-btn" onclick="openTab('datasets', this)">📊 Datasets</button>
+        <button class="tab-btn" onclick="openTab('webhooks', this)">🔗 Webhooks</button>
+        <button class="tab-btn" onclick="openTab('jobs', this)">⚙️ Jobs</button>
+        <button class="tab-btn" onclick="openTab('collections', this)">🗂️ Collections</button>
+        <button class="tab-btn" onclick="openTab('discussions', this)">💬 Discussions</button>
+        <button class="tab-btn" onclick="openTab('notifications', this)">🔔 Notifications</button>
+        <button class="tab-btn" onclick="openTab('billing', this)">💳 Billing</button>
       </div>
     </div>
 
-    <!-- TAB 2: REPOSITORIES -->
-    <div id="repos" class="tab-content">
-      <div class="card">
-        <h3>Your Repositories</h3>
-        <button onclick="fetchRepos()">Refresh Repos</button>
-        <button onclick="createRepo()" class="secondary-btn">+ Create New Repo</button>
-        <div id="repoList" class="list-container">Click refresh to load repos.</div>
+    <div class="content-area">
+      
+      <!-- 1. INFERENCE -->
+      <div id="inference" class="tab-content active">
+        <div class="card">
+          <h3>Run Inference</h3>
+          <input type="text" id="infModel" value="gpt2" placeholder="Model ID">
+          <textarea id="infPrompt" placeholder="Enter prompt here..."></textarea>
+          <button onclick="runInference()" class="btn-primary">Generate Text</button>
+          <pre id="infResult"></pre>
+        </div>
       </div>
-    </div>
 
-    <!-- TAB 3: WEBHOOKS -->
-    <div id="webhooks" class="tab-content">
-      <div class="card">
-        <h3>Manage Webhooks</h3>
-        <button onclick="fetchWebhooks()">Refresh Webhooks</button>
-        <div id="webhookList" class="list-container">Click refresh to load webhooks.</div>
+      <!-- 2. REPOSITORIES -->
+      <div id="repos" class="tab-content">
+        <div class="card">
+          <h3>Repositories</h3>
+          <div class="btn-group">
+            <button onclick="fetchRepos()" class="btn-secondary">Read Repos</button>
+            <button onclick="createRepo()" class="btn-primary">+ New Repo</button>
+          </div>
+          <div id="repoList" class="list-container">Click read to load repos.</div>
+        </div>
       </div>
+
+      <!-- 3. DATASETS -->
+      <div id="datasets" class="tab-content">
+        <div class="card">
+          <h3>Search Datasets</h3>
+          <div class="search-group">
+            <input type="text" id="datasetSearch" placeholder="Search datasets (e.g., imdb)...">
+            <button onclick="searchDatasets()" class="btn-primary">Search</button>
+          </div>
+          <div id="datasetList" class="list-container">Enter text and click search.</div>
+        </div>
+
+        <!-- Dataset Details View -->
+        <div id="datasetDetails" class="card hidden">
+          <button onclick="closeDatasetDetails()" class="btn-secondary btn-sm" style="margin-bottom: 15px;">← Back</button>
+          <h3 id="dsTitle">Dataset Title</h3>
+          <div id="dsContent"></div>
+        </div>
+      </div>
+
+      <!-- 4. WEBHOOKS -->
+      <div id="webhooks" class="tab-content">
+        <div class="card">
+          <h3>Webhooks</h3>
+          <div class="btn-group">
+            <button onclick="fetchWebhooks()" class="btn-secondary">Read Webhooks</button>
+            <button onclick="createWebhook()" class="btn-primary">+ Create Webhook</button>
+          </div>
+          <div id="webhookList" class="list-container">Loading...</div>
+        </div>
+      </div>
+
+      <!-- 5. JOBS -->
+      <div id="jobs" class="tab-content">
+        <div class="card">
+          <h3>Jobs</h3>
+          <button onclick="fetchJobs()" class="btn-secondary">Read Jobs</button>
+          <div id="jobList" class="list-container">Loading...</div>
+        </div>
+      </div>
+
+      <!-- 6. COLLECTIONS -->
+      <div id="collections" class="tab-content">
+        <div class="card">
+          <h3>Collections</h3>
+          <button onclick="fetchCollections()" class="btn-secondary">Read Collections</button>
+          <div id="collectionList" class="list-container">Loading...</div>
+        </div>
+      </div>
+
+      <!-- 7. DISCUSSIONS -->
+      <div id="discussions" class="tab-content">
+        <div class="card">
+          <h3>Discussions & PRs</h3>
+          <input type="text" id="discRepo" placeholder="Model ID (e.g. gpt2)">
+          <button onclick="fetchDiscussions()" class="btn-secondary">Read Discussions</button>
+          <div id="discussionList" class="list-container">Loading...</div>
+        </div>
+      </div>
+
+      <!-- 8. NOTIFICATIONS -->
+      <div id="notifications" class="tab-content">
+        <div class="card">
+          <h3>Notifications</h3>
+          <button onclick="fetchNotifications()" class="btn-secondary">Read Inbox</button>
+          <div id="notifList" class="list-container">Loading...</div>
+        </div>
+      </div>
+
+      <!-- 9. BILLING -->
+      <div id="billing" class="tab-content">
+        <div class="card">
+          <h3>Billing Info</h3>
+          <button onclick="fetchBilling()" class="btn-secondary">Read Billing</button>
+          <pre id="billingResult"></pre>
+        </div>
+      </div>
+
     </div>
   </div>
 
-  <!-- 🔥 NEW: LIVE LOGS CONSOLE -->
+  <!-- 🔥 LIVE LOGS CONSOLE -->
   <div id="logConsole" class="log-console">
     <div class="log-header">
       <span>🖥️ System Logs</span>
       <button onclick="clearLogs()">Clear</button>
     </div>
     <div id="logBody" class="log-body">
-      <div class="log-info">[System] Ready to connect...</div>
+      <div class="log-info">[System] Ready...</div>
     </div>
   </div>
 
