@@ -1,37 +1,58 @@
 let HF_TOKEN = sessionStorage.getItem('hf_token') || '';
 
-// App Init
 window.onload = () => {
   if (HF_TOKEN) {
-    document.getElementById('loginScreen').classList.add('hidden');
-    document.getElementById('dashboard').classList.remove('hidden');
+    showDashboard();
   }
 };
 
-// 1. LOGIN FUNCTION
-function login() {
+function showDashboard() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+}
+
+// 🔥 NEW & IMPROVED LOGIN FUNCTION
+async function login() {
   const token = document.getElementById('tokenInput').value.trim();
+  const errorBox = document.getElementById('loginError');
+  
   if (!token.startsWith('hf_')) {
-    document.getElementById('loginError').innerText = 'Invalid token format. Must start with hf_';
+    errorBox.innerText = 'Invalid format. Token must start with "hf_"';
     return;
   }
-  
-  // Token validate karne ke liye ek test call
-  fetch('/api/proxy?url=https://huggingface.co/api/whoami', {
-    headers: { 'x-hf-token': token }
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.name) {
+
+  errorBox.innerText = 'Connecting & Verifying Token...';
+  errorBox.style.color = '#3b82f6'; // Blue color for loading
+
+  try {
+    // Direct Inference API call for testing
+    const response = await fetch('https://api-inference.huggingface.co/models/gpt2', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ inputs: "Hello" })
+    });
+
+    // Agar token galat hoga to 401 (Unauthorized) aayega
+    if (response.status === 401) {
+      throw new Error("Invalid Token (401 Unauthorized). Please check permissions.");
+    }
+
+    // Agar 503 (Model Loading) aaya to bhi token valid hota hai
+    if (response.status === 503 || response.ok) {
       HF_TOKEN = token;
       sessionStorage.setItem('hf_token', token);
-      document.getElementById('loginScreen').classList.add('hidden');
-      document.getElementById('dashboard').classList.remove('hidden');
+      showDashboard();
     } else {
-      document.getElementById('loginError').innerText = 'Invalid Token or Connection Failed';
+      const errData = await response.json();
+      throw new Error(errData.error || "Failed to verify token");
     }
-  })
-  .catch(() => document.getElementById('loginError').innerText = 'Connection Error');
+  } catch (err) {
+    errorBox.innerText = err.message;
+    errorBox.style.color = '#ef4444'; // Red color for error
+  }
 }
 
 function logout() {
@@ -39,7 +60,6 @@ function logout() {
   location.reload();
 }
 
-// Tab Switching
 function openTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -47,7 +67,7 @@ function openTab(tabId) {
   event.target.classList.add('active');
 }
 
-// Helper for API Calls
+// Helper for Management API (Repos, Webhooks, etc.)
 async function callHF(endpoint, method = 'GET', body = null) {
   const url = `https://huggingface.co${endpoint}`;
   const options = {
@@ -59,13 +79,12 @@ async function callHF(endpoint, method = 'GET', body = null) {
   };
   if (body) options.body = JSON.stringify(body);
 
-  // Proxy call
   const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`, options);
   return await res.json();
 }
 
 // ==========================================
-// TAB 1: INFERENCE (Text Generation)
+// TAB 1: INFERENCE
 // ==========================================
 async function runInference() {
   const model = document.getElementById('infModel').value;
@@ -74,7 +93,6 @@ async function runInference() {
   resultBox.innerText = 'Generating... Please wait.';
 
   try {
-    // HF Inference API URL
     const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
       method: 'POST',
       headers: { 
@@ -96,10 +114,12 @@ async function runInference() {
 // ==========================================
 async function fetchRepos() {
   const repoList = document.getElementById('repoList');
+  const username = prompt("Enter your Hugging Face Username:");
+  if (!username) return;
+
   repoList.innerHTML = 'Loading...';
   
-  // Aapke saare repos fetch karna
-  const data = await callHF('/api/models?author=' + prompt("Enter your HF Username:"));
+  const data = await callHF(`/api/models?author=${username}`);
   
   if (Array.isArray(data)) {
     repoList.innerHTML = data.map(repo => `
@@ -118,14 +138,16 @@ async function createRepo() {
   if (!repoName) return;
   
   const username = prompt("Enter your HF Username:");
+  
+  // HF Create Repo API
   const data = await callHF('/api/repos/create', 'POST', {
     name: repoName,
-    organization: username,
+    organization: username, // Optional, if creating under user
     type: "model",
     private: false
   });
   
-  alert("Repo Creation Response: \n" + JSON.stringify(data, null, 2));
+  alert("Response:\n" + JSON.stringify(data, null, 2));
   fetchRepos();
 }
 
@@ -142,9 +164,11 @@ async function fetchWebhooks() {
     list.innerHTML = data.map(wh => `
       <div class="list-item">
         <strong>${wh.url}</strong><br>
-        <small>ID: ${wh.id} | Models: ${wh.models ? wh.models.length : 0}</small>
+        <small>ID: ${wh.id}</small>
       </div>
     `).join('');
+  } else if(data.error) {
+    list.innerHTML = `<span style="color:red">Error: ${data.error}</span>`;
   } else {
     list.innerHTML = 'No webhooks found.';
   }
@@ -157,16 +181,17 @@ async function fetchJobs() {
   const list = document.getElementById('jobList');
   list.innerHTML = 'Loading...';
   
-  // Jobs list fetch karne ki API
   const data = await callHF('/api/jobs');
   
-  if (data && data.length > 0) {
+  if (Array.isArray(data) && data.length > 0) {
     list.innerHTML = data.map(job => `
       <div class="list-item">
         <strong>Job ID: ${job.id}</strong><br>
         <small>Status: ${job.status}</small>
       </div>
     `).join('');
+  } else if(data.error) {
+    list.innerHTML = `<span style="color:red">Error: ${data.error}</span>`;
   } else {
     list.innerHTML = 'No active jobs found.';
   }
