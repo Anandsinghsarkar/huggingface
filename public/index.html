@@ -19,7 +19,7 @@
     </div>
   </div>
 
-  <!-- DASHBOARD (Hidden by default) -->
+  <!-- DASHBOARD (Hidden initially) -->
   <div id="dashboard" class="hidden">
     <header>
       <h2>🤗 HF Control Center</h2>
@@ -27,10 +27,9 @@
     </header>
 
     <div class="tabs">
-      <button class="tab-btn active" onclick="openTab('inference')">⚡ Inference (AI)</button>
-      <button class="tab-btn" onclick="openTab('repos')">📁 Repositories</button>
-      <button class="tab-btn" onclick="openTab('webhooks')">🔗 Webhooks</button>
-      <button class="tab-btn" onclick="openTab('jobs')">⚙️ Jobs</button>
+      <button class="tab-btn active" onclick="openTab('inference', this)">⚡ Inference (AI)</button>
+      <button class="tab-btn" onclick="openTab('repos', this)">📁 Repositories</button>
+      <button class="tab-btn" onclick="openTab('webhooks', this)">🔗 Webhooks</button>
     </div>
 
     <!-- TAB 1: INFERENCE -->
@@ -62,16 +61,17 @@
         <div id="webhookList" class="list-container">Click refresh to load webhooks.</div>
       </div>
     </div>
+  </div>
 
-    <!-- TAB 4: JOBS -->
-    <div id="jobs" class="tab-content">
-      <div class="card">
-        <h3>Manage Jobs</h3>
-        <button onclick="fetchJobs()">Refresh Jobs</button>
-        <div id="jobList" class="list-container">Click refresh to load jobs.</div>
-      </div>
+  <!-- 🔥 NEW: LIVE LOGS CONSOLE -->
+  <div id="logConsole" class="log-console">
+    <div class="log-header">
+      <span>🖥️ System Logs</span>
+      <button onclick="clearLogs()">Clear</button>
     </div>
-
+    <div id="logBody" class="log-body">
+      <div class="log-info">[System] Ready to connect...</div>
+    </div>
   </div>
 
   <script src="app.js"></script>
