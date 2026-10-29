@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HF Full API Manager</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen" class="login-container">
+    <div class="login-box">
+      <h2>🤗 Hugging Face API Manager</h2>
+      <p>Enter your Full Access Token to connect</p>
+      <input type="password" id="tokenInput" placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxxx">
+      <button onclick="login()">Connect to HF</button>
+      <p class="error" id="loginError"></p>
+    </div>
+  </div>
+
+  <!-- DASHBOARD (Hidden by default) -->
+  <div id="dashboard" class="hidden">
+    <header>
+      <h2>🤗 HF Control Center</h2>
+      <button onclick="logout()" class="logout-btn">Logout</button>
+    </header>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="openTab('inference')">⚡ Inference (AI)</button>
+      <button class="tab-btn" onclick="openTab('repos')">📁 Repositories</button>
+      <button class="tab-btn" onclick="openTab('webhooks')">🔗 Webhooks</button>
+      <button class="tab-btn" onclick="openTab('jobs')">⚙️ Jobs</button>
+    </div>
+
+    <!-- TAB 1: INFERENCE -->
+    <div id="inference" class="tab-content active">
+      <div class="card">
+        <h3>Text Generation</h3>
+        <input type="text" id="infModel" value="gpt2" placeholder="Model ID">
+        <textarea id="infPrompt" placeholder="Enter prompt here..."></textarea>
+        <button onclick="runInference()">Generate Text</button>
+        <pre id="infResult"></pre>
+      </div>
+    </div>
+
+    <!-- TAB 2: REPOSITORIES -->
+    <div id="repos" class="tab-content">
+      <div class="card">
+        <h3>Your Repositories</h3>
+        <button onclick="fetchRepos()">Refresh Repos</button>
+        <button onclick="createRepo()" class="secondary-btn">+ Create New Repo</button>
+        <div id="repoList" class="list-container">Click refresh to load repos.</div>
+      </div>
+    </div>
+
+    <!-- TAB 3: WEBHOOKS -->
+    <div id="webhooks" class="tab-content">
+      <div class="card">
+        <h3>Manage Webhooks</h3>
+        <button onclick="fetchWebhooks()">Refresh Webhooks</button>
+        <div id="webhookList" class="list-container">Click refresh to load webhooks.</div>
+      </div>
+    </div>
+
+    <!-- TAB 4: JOBS -->
+    <div id="jobs" class="tab-content">
+      <div class="card">
+        <h3>Manage Jobs</h3>
+        <button onclick="fetchJobs()">Refresh Jobs</button>
+        <div id="jobList" class="list-container">Click refresh to load jobs.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
